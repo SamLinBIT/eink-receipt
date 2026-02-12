@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>海拉鲁大饭店 - 高级打单机</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --paper-width: 380px;
+            --bg-color: #2b2b2b;
+            --machine-color: #1a1a1a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #fff;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- 控制面板 --- */
+        .controls {
+            width: 100%;
+            background: #333;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            border-bottom: 2px solid #444;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            border-right: 1px solid #555;
+            padding: 0 10px;
+        }
+
+        button, label.btn-label {
+            padding: 6px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid #555;
+            background: #444;
+            color: #eee;
+            border-radius: 4px;
+        }
+
+        button:hover { background: #555; }
+        button.active { background: #e74c3c; color: white; border-color: #c0392b; }
+        .export-btn { background: #27ae60 !important; border-color: #2ecc71 !important; }
+
+        /* --- 打印区域 --- */
+        .printer-stage {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            background: var(--machine-color);
+            padding: 40px 0;
+            overflow-x: hidden;
+        }
+
+        /* 收据本体 */
+        .receipt-container {
+            background-color: #fff;
+            width: var(--paper-width);
+            color: #000;
+            font-family: 'Courier New', 'SimSun', serif;
+            padding: 30px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background-image: linear-gradient(rgba(255,255,255,0.97), rgba(255,255,255,0.97)), url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIi8+CjxwYXRoIGQ9Ik0wIDBoNHY0SDB6IiBmaWxsPSIjMDAwIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+');
+        }
+
+        /* 比例 */
+        .ratio-2-3 { aspect-ratio: 2 / 3; }
+        .ratio-3-5 { aspect-ratio: 3 / 5; }
+        .ratio-9-21 { aspect-ratio: 9 / 21; }
+
+        /* 锯齿效果 */
+        .jagged-edge {
+            clip-path: polygon(
+                0% 0%, 2% 1%, 4% 0%, 6% 1%, 8% 0%, 10% 1%, 12% 0%, 14% 1%, 16% 0%, 18% 1%, 20% 0%, 22% 1%, 24% 0%, 26% 1%, 28% 0%, 30% 1%, 32% 0%, 34% 1%, 36% 0%, 38% 1%, 40% 0%, 42% 1%, 44% 0%, 46% 1%, 48% 0%, 50% 1%, 52% 0%, 54% 1%, 56% 0%, 58% 1%, 60% 0%, 62% 1%, 64% 0%, 66% 1%, 68% 0%, 70% 1%, 72% 0%, 74% 1%, 76% 0%, 78% 1%, 80% 0%, 82% 1%, 84% 0%, 86% 1%, 88% 0%, 90% 1%, 92% 0%, 94% 1%, 96% 0%, 98% 1%, 100% 0%,
+                100% 100%, 98% 99%, 96% 100%, 94% 99%, 92% 100%, 90% 99%, 88% 100%, 86% 99%, 84% 100%, 82% 99%, 80% 100%, 78% 99%, 76% 100%, 74% 99%, 72% 100%, 70% 99%, 68% 100%, 66% 99%, 64% 100%, 62% 99%, 60% 100%, 58% 99%, 56% 100%, 54% 99%, 52% 100%, 50% 99%, 48% 100%, 46% 99%, 44% 100%, 42% 99%, 40% 100%, 38% 99%, 36% 100%, 34% 99%, 32% 100%, 30% 99%, 28% 100%, 26% 99%, 24% 100%, 22% 99%, 20% 100%, 18% 99%, 16% 100%, 14% 99%, 12% 100%, 10% 99%, 8% 100%, 6% 99%, 4% 100%, 2% 99%, 0% 100%
+            );
+        }
+
+        /* 拖拽相关 */
+        .barcode-wrapper {
+            position: absolute;
+            top: 110px;
+            left: 200px;
+            cursor: grab;
+            user-select: none;
+            mix-blend-mode: multiply;
+            z-index: 10;
+        }
+        .barcode-wrapper:active { cursor: grabbing; }
+        .dragging { opacity: 0.7; border: 1px dashed #666; }
+
+        .delete-active .editable-item:hover { background: rgba(255,0,0,0.1); outline: 1px dashed red; cursor: pointer; }
+        
+        /* 收据排版细节 */
+        .header { margin-bottom: 10px; }
+        .order-num { font-size: 52px; font-weight: bold; line-height: 0.9; }
+        .hotel-title { font-size: 20px; font-weight: bold; }
+        .slip-type { font-size: 32px; font-family: "bold", serif; }
+        .divider { border-bottom: 2px dashed #000; margin: 5px 0; }
+        .menu-item { display: flex; margin-bottom: 12px; align-items: baseline; font-family: "bold", serif; }
+        .item-name { font-size: 19px; font-weight: bold; }
+        .item-desc { font-size: 12px; }
+        .note { font-size: 16px; font-weight: bold; }
+        .footer-note { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        .total-price { font-size: 22px; font-weight: bold; }
+
+        @media (max-width: 450px) {
+            .receipt-container { transform: scale(0.85); transform-origin: top center; }
+            .controls { padding: 5px; gap: 4px; }
+            .control-group { border: none; padding: 2px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="control-group">
+            <button onclick="setRatio('2-3')" id="btn-2-3" class="active">2:3</button>
+            <button onclick="setRatio('3-5')" id="btn-3-5">3:5</button>
+            <button onclick="setRatio('9-21')" id="btn-9-21">9:21</button>
+        </div>
+        <div class="control-group">
+            <button onclick="toggleJagged()" id="btn-jag">✂️ 锯齿:开</button>
+        </div>
+        <div class="control-group">
+            <button onclick="toggleDeleteMode()" id="btn-del">🗑️ 删除</button>
+            <button onclick="addMenuItem()" id="btn-add">🍽️ 我要加菜</button>
+            <button onclick="calculateTotal()" id="btn-refresh">🔄 刷新价格</button>
+        </div>
+        <div class="control-group">
+            <label class="btn-label" for="font-upload">更改字体</label>
+            <input type="file" id="font-upload" hidden onchange="loadCustomFont(this)">
+            <button onclick="exportImage()" class="export-btn">📸 导出图片</button>
+        </div>
+    </div>
+
+    <div class="printer-stage">
+        <div class="receipt-container ratio-2-3 jagged-edge" id="receipt" contenteditable="true">
+            
+            <div class="barcode-wrapper" id="barcode-move" contenteditable="false" onmousedown="startDrag(event)" ontouchstart="startDrag(event)" ondblclick="editBarcode()">
+                <svg id="barcode"></svg>
+            </div>
+
+            <div class="header editable-item">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <div class="order-num">088</div>
+                    <div style="text-align:right">
+                        <div class="hotel-title">海拉鲁大饭店</div>
+                        <div class="slip-type">留台单</div>
+                    </div>
+                </div>
+                <div style="font-size:13px; margin-top:8px;">
+                    Address: Hyrule Hotel<br>
+                    Date: 2/4/2026 18:15<br>
+                    Traveler: Link
+                </div>
+            </div>
+
+            <div style="flex-grow:1;">
+                <div style="display:flex; font-size:14px; color:#181818; margin-bottom:3px;">
+                    <div style="width:50px">数量</div>
+                    <div style="flex:1">菜品</div>
+                    <div>价格</div>
+                </div>
+                <div class="divider"></div>
+                <div id="item-list">
+                    <div class="menu-item editable-item">
+                        <div style="width:50px">1</div>
+                        <div style="flex:1">
+                            <div class="item-name">番茄汤</div>
+                            <div class="item-desc">海拉鲁番茄/鲜奶/岩盐</div>
+                        </div>
+                        <div style="font-weight:bold">19.9</div>
+                    </div>
+                    <div class="menu-item editable-item">
+                        <div style="width:50px">4</div>
+                        <div style="flex:1">
+                            <div class="item-name">烤肉蘑菇串</div>
+                            <div class="item-desc">蘑菇/兽肉</div>
+                        </div>
+                        <div style="font-weight:bold">9.9</div>
+                    </div>
+                    <div class="menu-item editable-item">
+                        <div style="width:50px">1</div>
+                        <div style="flex:1">
+                            <div class="item-name">黄油苹果</div>
+                            <div class="item-desc">苹果/山羊黄油</div>
+                        </div>
+                        <div style="font-weight:bold">15.9</div>
+                    </div>
+                    <div class="menu-item editable-item">
+                        <div style="width:50px">1</div>
+                        <div style="flex:1">
+                            <div class="item-name">海鲜咖喱饭</div>
+                            <div class="item-desc">鼓隆的调味粉/海拉鲁米/生命鲈鱼</div>
+                        </div>
+                        <div style="font-weight:bold">39.9</div>
+                    </div>
+                </div>
+                <div class="divider"></div>
+            </div>
+
+            <div class="note editable-item">
+                <div class="note">整单备注：<br>不要怪物精华 谢谢</div>
+            </div>
+            <div class="footer editable-item">
+                <div style="display:flex; justify-content:space-between; align-items: flex-end;">
+                    <div style="font-size:13px">座位: 森之锅 6号</div>
+                    <div style="text-align:right">
+                        <div class="total-price" id="total-price">合计: 0 卢比</div>
+                        <div id="discount">折扣情况: -14 卢比</div>
+                        <div style="font-size:16px; font-weight:bold" id="final-price">实付: 0</div>
+                    </div>
+                </div>
+                <div style="text-align:center; font-size:11px; margin-top:15px; border-top:1px solid #000; padding-top:10px;">
+                    --祝勇者旅途愉快 呀哈哈--
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 锯齿切换
+        function toggleJagged() {
+            const r = document.getElementById('receipt');
+            const btn = document.getElementById('btn-jag');
+            const isOn = r.classList.toggle('jagged-edge');
+            btn.innerText = isOn ? "✂️ 锯齿:开" : "✂️ 锯齿:关";
+        }
+
+        // 2. 比例切换
+        function setRatio(c) {
+            const r = document.getElementById('receipt');
+            r.classList.remove('ratio-2-3', 'ratio-3-5', 'ratio-9-21');
+            r.classList.add('ratio-' + c);
+            document.querySelectorAll('.control-group button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + c).classList.add('active');
+        }
+
+        // 3. 拖拽条形码
+        let dragItem = document.getElementById('barcode-move');
+        let active = false;
+        let currentX, currentY, initialX, initialY;
+        let xOffset = 0, yOffset = 0;
+
+        function startDrag(e) {
+            const event = e.type === 'touchstart' ? e.touches[0] : e;
+            initialX = event.clientX - xOffset;
+            initialY = event.clientY - yOffset;
+            if (e.target.closest('#barcode-move')) active = true;
+        }
+
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('mouseup', () => active = false);
+        document.addEventListener('touchend', () => active = false);
+
+        function drag(e) {
+            if (!active) return;
+            e.preventDefault();
+            const event = e.type === 'touchmove' ? e.touches[0] : e;
+            currentX = event.clientX - initialX;
+            currentY = event.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            dragItem.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(-2deg)`;
+        }
+
+        // 4. 删除模式
+        let delMode = false;
+        function toggleDeleteMode() {
+            delMode = !delMode;
+            document.getElementById('receipt').classList.toggle('delete-active');
+            document.getElementById('btn-del').classList.toggle('active');
+            document.getElementById('receipt').setAttribute('contenteditable', delMode ? 'false' : 'true');
+        }
+
+        document.getElementById('receipt').addEventListener('click', (e) => {
+            if (!delMode) return;
+            const target = e.target.closest('.editable-item');
+            if (target) {
+                target.remove();
+                calculateTotal();
+            }
+        });
+
+        document.getElementById('item-list').addEventListener('input', calculateTotal);
+        document.getElementById('discount').addEventListener('input', calculateTotal);
+
+        // 5. 导出图片
+        async function exportImage() {
+            const receipt = document.getElementById('receipt');
+            const btn = document.querySelector('.export-btn');
+            btn.innerText = "生成中...";
+            
+            // 导出前临时取消缩放以便高清捕捉
+            const originalTransform = receipt.style.transform;
+            receipt.style.transform = 'none';
+
+            const canvas = await html2canvas(receipt, {
+                backgroundColor: null,
+                scale: 2, // 2倍清晰度
+                useCORS: true,
+                logging: false
+            });
+
+            const link = document.createElement('a');
+            link.download = `Hyrule_Receipt_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            receipt.style.transform = originalTransform;
+            btn.innerText = "📸 导出图片";
+        }
+
+        // 加载字体
+        function loadCustomFont(input) {
+            if (input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const font = new FontFace('UserFont', `url(${e.target.result})`);
+                    font.load().then(f => {
+                        document.fonts.add(f);
+                        document.getElementById('receipt').style.fontFamily = "'UserFont', sans-serif";
+                    });
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 初始化
+        window.onload = () => {
+            JsBarcode("#barcode", "HYRULE-20260204", { width: 0.8, height: 20, displayValue: true, fontSize: 10, background: null });
+            calculateTotal();
+        };
+
+        // 加菜功能
+        function addMenuItem() {
+            const itemList = document.getElementById('item-list');
+            const newItem = document.createElement('div');
+            newItem.className = 'menu-item editable-item';
+            newItem.innerHTML = `
+                <div style="width:50px">1</div>
+                <div style="flex:1">
+                    <div class="item-name">新菜品</div>
+                    <div class="item-desc">点击编辑描述</div>
+                </div>
+                <div style="font-weight:bold">0.0</div>
+            `;
+            itemList.appendChild(newItem);
+            calculateTotal();
+        }
+
+        // 编辑条形码
+        let currentBarcodeValue = 'HYRULE-20260204';
+        function editBarcode() {
+            const newValue = prompt('请输入条形码内容:', currentBarcodeValue);
+            if (newValue && newValue.trim()) {
+                currentBarcodeValue = newValue.trim();
+                JsBarcode("#barcode", currentBarcodeValue, { width: 0.8, height: 20, displayValue: true, fontSize: 10, background: null });
+            }
+        }
+
+        // 计算合计
+        function calculateTotal() {
+            const items = document.querySelectorAll('#item-list .menu-item');
+            let total = 0;
+            items.forEach(item => {
+                const qty = parseFloat(item.children[0].textContent) || 0;
+                const price = parseFloat(item.children[2].textContent) || 0;
+                total += qty * price;
+            });
+            document.getElementById('total-price').textContent = `合计: ${total.toFixed(1)} 卢比`;
+            
+            const discountText = document.getElementById('discount').textContent;
+            const discountMatch = discountText.match(/-?[\d.]+/);
+            const discount = discountMatch ? parseFloat(discountMatch[0]) : 0;
+            const finalPrice = total + discount;
+            document.getElementById('final-price').textContent = `实付: ${finalPrice.toFixed(1)}`;
+        }
+    </script>
+</body>
+</html>
