@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>海拉鲁大饭店 - 高级打单机</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         :root {
             --paper-width: 380px;
@@ -122,10 +122,10 @@
         .order-num { font-size: 52px; font-weight: bold; line-height: 0.9; }
         .hotel-title { font-size: 20px; font-weight: bold; }
         .slip-type { font-size: 32px; font-family: "bold", serif; }
-        .divider { border-bottom: 2px dashed #000; margin: 5px 0; }
-        .menu-item { display: flex; margin-bottom: 12px; align-items: baseline; font-family: "bold", serif; }
-        .item-name { font-size: 19px; font-weight: bold; }
-        .item-desc { font-size: 12px; }
+        .divider { border-bottom: 2px dashed #000; margin: 1px 0; }
+        .menu-item { display: flex; margin-bottom: 3px; align-items: baseline; font-family: "bold", serif; }
+        .item-name { font-size: 22px; font-weight: bold; }
+        .item-desc { font-size: 16px; }
         .note { font-size: 16px; font-weight: bold; }
         .footer-note { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
         .total-price { font-size: 22px; font-weight: bold; }
@@ -175,7 +175,7 @@
                         <div class="slip-type">留台单</div>
                     </div>
                 </div>
-                <div style="font-size:13px; margin-top:8px;">
+                <div class="header-info" style="font-size:15px; margin-top:4px;">
                     Address: Hyrule Hotel<br>
                     Date: 2/4/2026 18:15<br>
                     Traveler: Link
@@ -183,7 +183,7 @@
             </div>
 
             <div style="flex-grow:1;">
-                <div style="display:flex; font-size:14px; color:#181818; margin-bottom:3px;">
+                <div class="menu-header" style="display:flex; font-size:16px; color:#181818; margin-bottom:3px;">
                     <div style="width:50px">数量</div>
                     <div style="flex:1">菜品</div>
                     <div>价格</div>
@@ -245,7 +245,84 @@
         </div>
     </div>
 
+    <!-- 样式调整面板 -->
+    <div class="controls" style="top: auto; bottom: 0; border-bottom: none; border-top: 2px solid #444;">
+        <div class="control-group">
+            <label style="font-size: 13px;">菜单项间距:</label>
+            <input type="range" min="1" max="20" value="3" oninput="adjustMenuItemSpacing(this.value)" style="width: 80px;">
+            <span id="menu-item-spacing-value">3px</span>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">菜品名称大小:</label>
+            <input type="range" min="14" max="30" value="22" oninput="adjustItemNameSize(this.value)" style="width: 80px;">
+            <span id="item-name-size-value">22px</span>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">菜品描述大小:</label>
+            <input type="range" min="10" max="20" value="16" oninput="adjustItemDescSize(this.value)" style="width: 80px;">
+            <span id="item-desc-size-value">16px</span>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">订单号大小:</label>
+            <input type="range" min="30" max="70" value="52" oninput="adjustOrderNumSize(this.value)" style="width: 80px;">
+            <span id="order-num-size-value">52px</span>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">头部信息大小:</label>
+            <input type="range" min="10" max="20" value="15" oninput="adjustHeaderInfoSize(this.value)" style="width: 80px;">
+            <span id="header-info-size-value">15px</span>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">菜单表头大小:</label>
+            <input type="range" min="12" max="22" value="16" oninput="adjustMenuHeaderSize(this.value)" style="width: 80px;">
+            <span id="menu-header-size-value">16px</span>
+        </div>
+    </div>
+
     <script>
+        // 样式调整函数
+        function adjustMenuItemSpacing(value) {
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.style.marginBottom = value + 'px';
+            });
+            document.getElementById('menu-item-spacing-value').textContent = value + 'px';
+        }
+        
+        function adjustItemNameSize(value) {
+            document.querySelectorAll('.item-name').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            document.getElementById('item-name-size-value').textContent = value + 'px';
+        }
+        
+        function adjustItemDescSize(value) {
+            document.querySelectorAll('.item-desc').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            document.getElementById('item-desc-size-value').textContent = value + 'px';
+        }
+        
+        function adjustOrderNumSize(value) {
+            document.querySelectorAll('.order-num').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            document.getElementById('order-num-size-value').textContent = value + 'px';
+        }
+        
+        function adjustHeaderInfoSize(value) {
+            document.querySelectorAll('.header-info').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            document.getElementById('header-info-size-value').textContent = value + 'px';
+        }
+        
+        function adjustMenuHeaderSize(value) {
+            document.querySelectorAll('.menu-header').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            document.getElementById('menu-header-size-value').textContent = value + 'px';
+        }
+        
         // 1. 锯齿切换
         function toggleJagged() {
             const r = document.getElementById('receipt');
@@ -314,29 +391,73 @@
         document.getElementById('discount').addEventListener('input', calculateTotal);
 
         // 5. 导出图片
-        async function exportImage() {
+        function exportImage() {
             const receipt = document.getElementById('receipt');
             const btn = document.querySelector('.export-btn');
-            btn.innerText = "生成中...";
             
-            // 导出前临时取消缩放以便高清捕捉
+            // 检查必要的元素和库是否存在
+            if (!receipt) {
+                alert('错误: 收据元素不存在');
+                return;
+            }
+            
+            if (typeof html2canvas === 'undefined') {
+                alert('错误: html2canvas 库未加载');
+                return;
+            }
+            
+            // 保存原始状态
             const originalTransform = receipt.style.transform;
+            const originalBtnText = btn.innerText;
+            
+            // 更新按钮状态
+            btn.innerText = "生成中...";
+            btn.disabled = true;
+            
+            // 导出前临时取消缩放
             receipt.style.transform = 'none';
 
-            const canvas = await html2canvas(receipt, {
-                backgroundColor: null,
-                scale: 2, // 2倍清晰度
-                useCORS: true,
-                logging: false
-            });
+            // 使用 setTimeout 来避免阻塞主线程
+            setTimeout(async () => {
+                try {
+                    // 降低 scale 值以提高性能
+                    const canvas = await html2canvas(receipt, {
+                        backgroundColor: '#ffffff',
+                        scale: 1.5, // 降低到 1.5 倍以提高性能
+                        useCORS: true,
+                        allowTaint: true,
+                        removeContainer: true,
+                        logging: false
+                    });
 
-            const link = document.createElement('a');
-            link.download = `Hyrule_Receipt_${Date.now()}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            
-            receipt.style.transform = originalTransform;
-            btn.innerText = "📸 导出图片";
+                    if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+                        throw new Error('Canvas 创建失败');
+                    }
+
+                    // 创建下载链接
+                    const link = document.createElement('a');
+                    link.download = `Hyrule_Receipt_${Date.now()}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    
+                    // 显示成功提示
+                    setTimeout(() => {
+                        alert('导出成功！');
+                    }, 500);
+                } catch (error) {
+                    console.error('导出失败:', error);
+                    alert('导出失败: ' + (error.message || '未知错误，请稍后再试'));
+                } finally {
+                    // 确保恢复所有状态
+                    try {
+                        receipt.style.transform = originalTransform;
+                        btn.innerText = originalBtnText;
+                        btn.disabled = false;
+                    } catch (e) {
+                        console.error('恢复状态失败:', e);
+                    }
+                }
+            }, 100);
         }
 
         // 加载字体
