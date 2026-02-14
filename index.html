@@ -13,6 +13,14 @@
             --machine-color: #1a1a1a;
         }
 
+        /* 引入方正小标宋简体字体 */
+        @font-face {
+            font-family: 'FZXBSJW';
+            src: url('方正小标宋简体.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         body {
             background-color: var(--bg-color);
             color: #fff;
@@ -79,7 +87,7 @@
             background-color: #fff;
             width: var(--paper-width);
             color: #000;
-            font-family: 'Courier New', 'SimSun', serif;
+            font-family: 'FZXBSJW', 'Courier New', 'SimSun', serif;
             padding: 30px;
             box-sizing: border-box;
             display: flex;
@@ -113,19 +121,34 @@
             z-index: 10;
         }
         .barcode-wrapper:active { cursor: grabbing; }
+        
+        /* 图章样式 - 作为独立涂层 */
+        .stamp-wrapper {
+            position: absolute;
+            top: 40px; /* 调整位置，使其初始位置在小票的左上角 */
+            left: 200px;
+            cursor: grab;
+            user-select: none;
+            mix-blend-mode: multiply;
+            z-index: 1000; /* 确保在最上层 */
+            transform-origin: center;
+            pointer-events: auto;
+        }
+        .stamp-wrapper:active { cursor: grabbing; }
+        
         .dragging { opacity: 0.7; border: 1px dashed #666; }
 
         .delete-active .editable-item:hover { background: rgba(255,0,0,0.1); outline: 1px dashed red; cursor: pointer; }
         
         /* 收据排版细节 */
         .header { margin-bottom: 10px; }
-        .order-num { font-size: 52px; font-weight: bold; line-height: 0.9; }
+        .order-num { font-size: 68px; font-weight: bold; line-height: 0.9; }
         .hotel-title { font-size: 20px; font-weight: bold; }
-        .slip-type { font-size: 32px; font-family: "bold", serif; }
+        .slip-type { font-size: 32px; font-weight: bold;}
         .divider { border-bottom: 2px dashed #000; margin: 1px 0; }
-        .menu-item { display: flex; margin-bottom: 3px; align-items: baseline; font-family: "bold", serif; }
+        .menu-item { display: flex; margin-bottom: 1px; align-items: baseline; font-weight: bold; }
         .item-name { font-size: 22px; font-weight: bold; }
-        .item-desc { font-size: 16px; }
+        .item-desc { font-size: 15px; }
         .note { font-size: 16px; font-weight: bold; }
         .footer-note { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
         .total-price { font-size: 22px; font-weight: bold; }
@@ -156,12 +179,34 @@
         <div class="control-group">
             <label class="btn-label" for="font-upload">更改字体</label>
             <input type="file" id="font-upload" hidden onchange="loadCustomFont(this)">
+            <button onclick="toggleStamp()" id="btn-stamp">🖋️ 图章:关</button>
+            <label class="btn-label" for="stamp-upload">自定义图章</label>
+            <input type="file" id="stamp-upload" accept=".png" hidden onchange="loadCustomStamp(this)">
             <button onclick="exportImage()" class="export-btn">📸 导出图片</button>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">旋转条形码:</label>
+            <button onclick="rotateBarcode(-1)" style="font-size: 12px;">↺ -1°</button>
+            <button onclick="rotateBarcode(1)" style="font-size: 12px;">↻ +1°</button>
+            <button onclick="rotateBarcode(-10)" style="font-size: 12px;">↺ -10°</button>
+            <button onclick="rotateBarcode(10)" style="font-size: 12px;">↻ +10°</button>
+        </div>
+        <div class="control-group">
+            <label style="font-size: 13px;">旋转图章:</label>
+            <button onclick="rotateStamp(-1)" style="font-size: 12px;">↺ -1°</button>
+            <button onclick="rotateStamp(1)" style="font-size: 12px;">↻ +1°</button>
+            <button onclick="rotateStamp(-10)" style="font-size: 12px;">↺ -10°</button>
+            <button onclick="rotateStamp(10)" style="font-size: 12px;">↻ +10°</button>
         </div>
     </div>
 
     <div class="printer-stage">
         <div class="receipt-container ratio-2-3 jagged-edge" id="receipt" contenteditable="true">
+            
+            <!-- 图章元素 - 作为独立涂层 -->
+            <div class="stamp-wrapper" id="stamp-move" contenteditable="false" onmousedown="startDrag(event)" ontouchstart="startDrag(event)" ondblclick="resizeStamp()" style="display: none;">
+                <img id="stamp" src="stamp.png" alt="Stamp" style="width: 100px; height: auto; cursor: grab; opacity: 0.8;">
+            </div>
             
             <div class="barcode-wrapper" id="barcode-move" contenteditable="false" onmousedown="startDrag(event)" ontouchstart="startDrag(event)" ondblclick="editBarcode()">
                 <svg id="barcode"></svg>
@@ -169,7 +214,7 @@
 
             <div class="header editable-item">
                 <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                    <div class="order-num">088</div>
+                    <div class="order-num">018</div>
                     <div style="text-align:right">
                         <div class="hotel-title">海拉鲁大饭店</div>
                         <div class="slip-type">留台单</div>
@@ -177,7 +222,7 @@
                 </div>
                 <div class="header-info" style="font-size:15px; margin-top:4px;">
                     Address: Hyrule Hotel<br>
-                    Date: 2/4/2026 18:15<br>
+                    Date: 2/14/2026 18:15<br>
                     Traveler: Link
                 </div>
             </div>
@@ -191,36 +236,44 @@
                 <div class="divider"></div>
                 <div id="item-list">
                     <div class="menu-item editable-item">
-                        <div style="width:50px">1</div>
+                        <div class="item-quantity" style="width:50px; font-size: 22px;">1</div>
                         <div style="flex:1">
-                            <div class="item-name">番茄汤</div>
+                            <div class="item-name">番茄汤🍲</div>
                             <div class="item-desc">海拉鲁番茄/鲜奶/岩盐</div>
                         </div>
-                        <div style="font-weight:bold">19.9</div>
+                        <div class="item-price" style="font-weight:bold; font-size: 22px;">29.8</div>
                     </div>
                     <div class="menu-item editable-item">
-                        <div style="width:50px">4</div>
+                        <div class="item-quantity" style="width:50px; font-size: 22px;">1</div>
                         <div style="flex:1">
-                            <div class="item-name">烤肉蘑菇串</div>
+                            <div class="item-name">蟹肉蛋炒饭🍛</div>
+                            <div class="item-desc">螃蟹/海拉鲁米/禽蛋/岩盐</div>
+                        </div>
+                        <div class="item-price" style="font-weight:bold; font-size: 22px;">69.8</div>
+                    </div>
+                    <div class="menu-item editable-item">
+                        <div class="item-quantity" style="width:50px; font-size: 22px;">4</div>
+                        <div style="flex:1">
+                            <div class="item-name">烤肉蘑菇串🍢</div>
                             <div class="item-desc">蘑菇/兽肉</div>
                         </div>
-                        <div style="font-weight:bold">9.9</div>
+                        <div class="item-price" style="font-weight:bold; font-size: 22px;">8.8</div>
                     </div>
                     <div class="menu-item editable-item">
-                        <div style="width:50px">1</div>
+                        <div class="item-quantity" style="width:50px; font-size: 22px;">2</div>
                         <div style="flex:1">
-                            <div class="item-name">黄油苹果</div>
+                            <div class="item-name">黄油苹果🍎</div>
                             <div class="item-desc">苹果/山羊黄油</div>
                         </div>
-                        <div style="font-weight:bold">15.9</div>
+                        <div class="item-price" style="font-weight:bold; font-size: 22px;">16.8</div>
                     </div>
                     <div class="menu-item editable-item">
-                        <div style="width:50px">1</div>
+                        <div class="item-quantity" style="width:50px; font-size: 22px;">2</div>
                         <div style="flex:1">
-                            <div class="item-name">海鲜咖喱饭</div>
-                            <div class="item-desc">鼓隆的调味粉/海拉鲁米/生命鲈鱼</div>
+                            <div class="item-name">鲜蛋布丁🍮</div>
+                            <div class="item-desc">禽蛋/鲜奶/蔗糖</div>
                         </div>
-                        <div style="font-weight:bold">39.9</div>
+                        <div class="item-price" style="font-weight:bold; font-size: 22px;">19.8</div>
                     </div>
                 </div>
                 <div class="divider"></div>
@@ -231,48 +284,51 @@
             </div>
             <div class="footer editable-item">
                 <div style="display:flex; justify-content:space-between; align-items: flex-end;">
-                    <div style="font-size:13px">座位: 森之锅 6号</div>
+                    <div style="font-size:13px">座位: 初始台地</div>
                     <div style="text-align:right">
                         <div class="total-price" id="total-price">合计: 0 卢比</div>
                         <div id="discount">折扣情况: -14 卢比</div>
-                        <div style="font-size:16px; font-weight:bold" id="final-price">实付: 0</div>
+                        <div style="font-size:16px; font-weight:bold" id="final-price">实付: 0 卢比</div>
                     </div>
                 </div>
                 <div style="text-align:center; font-size:11px; margin-top:15px; border-top:1px solid #000; padding-top:10px;">
-                    --祝勇者旅途愉快 呀哈哈--
+                    --祝勇者旅途愉快！呀哈哈🍃--
                 </div>
             </div>
         </div>
     </div>
 
     <!-- 样式调整面板 -->
-    <div class="controls" style="top: auto; bottom: 0; border-bottom: none; border-top: 2px solid #444;">
-        <div class="control-group">
-            <label style="font-size: 13px;">菜单项间距:</label>
-            <input type="range" min="1" max="20" value="3" oninput="adjustMenuItemSpacing(this.value)" style="width: 80px;">
-            <span id="menu-item-spacing-value">3px</span>
+    <div class="controls" style="top: auto; bottom: 0; border-bottom: none; border-top: 2px solid #444; transition: all 0.3s ease;">
+        <div class="control-group" style="border-right: none;">
+            <button onclick="toggleStylePanel()" id="btn-toggle-panel" style="font-size: 12px; padding: 4px 8px;">▲ 隐藏面板</button>
         </div>
-        <div class="control-group">
+        <div class="control-group" id="style-controls">
+            <label style="font-size: 13px;">菜单项间距:</label>
+            <input type="range" min="1" max="20" value="2" oninput="adjustMenuItemSpacing(this.value)" style="width: 80px;">
+            <span id="menu-item-spacing-value">2px</span>
+        </div>
+        <div class="control-group" id="style-controls">
             <label style="font-size: 13px;">菜品名称大小:</label>
             <input type="range" min="14" max="30" value="22" oninput="adjustItemNameSize(this.value)" style="width: 80px;">
             <span id="item-name-size-value">22px</span>
         </div>
-        <div class="control-group">
+        <div class="control-group" id="style-controls">
             <label style="font-size: 13px;">菜品描述大小:</label>
-            <input type="range" min="10" max="20" value="16" oninput="adjustItemDescSize(this.value)" style="width: 80px;">
-            <span id="item-desc-size-value">16px</span>
+            <input type="range" min="10" max="20" value="15" oninput="adjustItemDescSize(this.value)" style="width: 80px;">
+            <span id="item-desc-size-value">15px</span>
         </div>
-        <div class="control-group">
+        <div class="control-group" id="style-controls">
             <label style="font-size: 13px;">订单号大小:</label>
-            <input type="range" min="30" max="70" value="52" oninput="adjustOrderNumSize(this.value)" style="width: 80px;">
-            <span id="order-num-size-value">52px</span>
+            <input type="range" min="30" max="70" value="68" oninput="adjustOrderNumSize(this.value)" style="width: 80px;">
+            <span id="order-num-size-value">68px</span>
         </div>
-        <div class="control-group">
+        <div class="control-group" id="style-controls">
             <label style="font-size: 13px;">头部信息大小:</label>
             <input type="range" min="10" max="20" value="15" oninput="adjustHeaderInfoSize(this.value)" style="width: 80px;">
             <span id="header-info-size-value">15px</span>
         </div>
-        <div class="control-group">
+        <div class="control-group" id="style-controls">
             <label style="font-size: 13px;">菜单表头大小:</label>
             <input type="range" min="12" max="22" value="16" oninput="adjustMenuHeaderSize(this.value)" style="width: 80px;">
             <span id="menu-header-size-value">16px</span>
@@ -280,6 +336,32 @@
     </div>
 
     <script>
+        // 面板切换函数
+        let stylePanelVisible = true;
+        function toggleStylePanel() {
+            const controls = document.querySelectorAll('#style-controls');
+            const btn = document.getElementById('btn-toggle-panel');
+            const panel = document.querySelector('.controls');
+            
+            stylePanelVisible = !stylePanelVisible;
+            
+            if (stylePanelVisible) {
+                // 显示面板
+                controls.forEach(control => {
+                    control.style.display = 'flex';
+                });
+                btn.innerText = '▼ 隐藏面板';
+                panel.style.padding = '10px';
+            } else {
+                // 隐藏面板
+                controls.forEach(control => {
+                    control.style.display = 'none';
+                });
+                btn.innerText = '▲ 显示面板';
+                panel.style.padding = '5px';
+            }
+        }
+        
         // 样式调整函数
         function adjustMenuItemSpacing(value) {
             document.querySelectorAll('.menu-item').forEach(item => {
@@ -289,7 +371,16 @@
         }
         
         function adjustItemNameSize(value) {
+            // 调整菜品名称大小
             document.querySelectorAll('.item-name').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            // 同步调整数量大小
+            document.querySelectorAll('.item-quantity').forEach(item => {
+                item.style.fontSize = value + 'px';
+            });
+            // 同步调整价格大小
+            document.querySelectorAll('.item-price').forEach(item => {
                 item.style.fontSize = value + 'px';
             });
             document.getElementById('item-name-size-value').textContent = value + 'px';
@@ -340,33 +431,60 @@
             document.getElementById('btn-' + c).classList.add('active');
         }
 
-        // 3. 拖拽条形码
-        let dragItem = document.getElementById('barcode-move');
+        // 3. 拖拽功能（支持条形码和图章）
+        let dragItem = null;
         let active = false;
         let currentX, currentY, initialX, initialY;
         let xOffset = 0, yOffset = 0;
 
         function startDrag(e) {
+            // 阻止事件冒泡和默认行为，防止图章被插入到文本中
+            e.preventDefault();
+            e.stopPropagation();
+            
             const event = e.type === 'touchstart' ? e.touches[0] : e;
             initialX = event.clientX - xOffset;
             initialY = event.clientY - yOffset;
-            if (e.target.closest('#barcode-move')) active = true;
+            
+            // 检查是否点击了条形码或图章
+            const barcodeMove = e.target.closest('#barcode-move');
+            const stampMove = e.target.closest('#stamp-move');
+            
+            if (barcodeMove) {
+                dragItem = barcodeMove;
+                active = true;
+            } else if (stampMove) {
+                dragItem = stampMove;
+                active = true;
+            }
         }
 
         document.addEventListener('mousemove', drag);
         document.addEventListener('touchmove', drag, { passive: false });
-        document.addEventListener('mouseup', () => active = false);
-        document.addEventListener('touchend', () => active = false);
+        document.addEventListener('mouseup', () => {
+            active = false;
+            dragItem = null;
+        });
+        document.addEventListener('touchend', () => {
+            active = false;
+            dragItem = null;
+        });
 
         function drag(e) {
-            if (!active) return;
+            if (!active || !dragItem) return;
             e.preventDefault();
             const event = e.type === 'touchmove' ? e.touches[0] : e;
             currentX = event.clientX - initialX;
             currentY = event.clientY - initialY;
             xOffset = currentX;
             yOffset = currentY;
-            dragItem.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(-2deg)`;
+            
+            // 拖拽时保持当前元素的旋转角度
+            if (dragItem.id === 'barcode-move') {
+                dragItem.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(${barcodeRotation}deg)`;
+            } else if (dragItem.id === 'stamp-move') {
+                dragItem.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(${stampRotation}deg)`;
+            }
         }
 
         // 4. 删除模式
@@ -379,7 +497,19 @@
         }
 
         document.getElementById('receipt').addEventListener('click', (e) => {
+            // 首先检查点击的是否是条形码或图章元素
+            const isBarcode = e.target.closest('#barcode-move');
+            const isStamp = e.target.closest('#stamp-move');
+            
+            if (isBarcode || isStamp) {
+                // 如果点击的是条形码或图章，立即返回，不执行任何操作
+                return;
+            }
+            
+            // 只有在删除模式且不是点击条形码或图章时才继续
             if (!delMode) return;
+            
+            // 只有点击的是可编辑项时才删除
             const target = e.target.closest('.editable-item');
             if (target) {
                 target.remove();
@@ -394,8 +524,9 @@
         function exportImage() {
             const receipt = document.getElementById('receipt');
             const btn = document.querySelector('.export-btn');
+            const stamp = document.getElementById('stamp-move');
+            const barcode = document.getElementById('barcode-move');
             
-            // 检查必要的元素和库是否存在
             if (!receipt) {
                 alert('错误: 收据元素不存在');
                 return;
@@ -406,41 +537,121 @@
                 return;
             }
             
-            // 保存原始状态
-            const originalTransform = receipt.style.transform;
             const originalBtnText = btn.innerText;
+            const stampWasVisible = stamp && stamp.style.display !== 'none';
+            const barcodeWasVisible = barcode && barcode.style.display !== 'none';
             
-            // 更新按钮状态
             btn.innerText = "生成中...";
             btn.disabled = true;
             
-            // 导出前临时取消缩放
-            receipt.style.transform = 'none';
-
-            // 使用 setTimeout 来避免阻塞主线程
             setTimeout(async () => {
                 try {
-                    // 降低 scale 值以提高性能
-                    const canvas = await html2canvas(receipt, {
+                    // 第一步：在显示状态下获取所有元素的位置和尺寸
+                    let barcodeInfo = null;
+                    let stampInfo = null;
+                    let stampImgSrc = null;
+                    
+                    if (barcode && barcodeWasVisible) {
+                        const barcodeRect = barcode.getBoundingClientRect();
+                        const receiptRect = receipt.getBoundingClientRect();
+                        barcodeInfo = {
+                            x: barcodeRect.left - receiptRect.left,
+                            y: barcodeRect.top - receiptRect.top,
+                            width: barcodeRect.width,
+                            height: barcodeRect.height
+                        };
+                    }
+                    
+                    if (stamp && stampWasVisible) {
+                        const stampRect = stamp.getBoundingClientRect();
+                        const receiptRect = receipt.getBoundingClientRect();
+                        const stampImg = document.getElementById('stamp');
+                        stampInfo = {
+                            x: stampRect.left - receiptRect.left,
+                            y: stampRect.top - receiptRect.top,
+                            width: stampRect.width,
+                            height: stampRect.height
+                        };
+                        if (stampImg) {
+                            stampImgSrc = stampImg.src;
+                        }
+                    }
+                    
+                    // 第二步：临时隐藏可能导致跨域问题的元素
+                    if (stamp) stamp.style.display = 'none';
+                    if (barcode) barcode.style.display = 'none';
+                    
+                    // 第三步：捕获干净的收据（不含图章和条形码）
+                    const receiptCanvas = await html2canvas(receipt, {
                         backgroundColor: '#ffffff',
-                        scale: 1.5, // 降低到 1.5 倍以提高性能
-                        useCORS: true,
-                        allowTaint: true,
-                        removeContainer: true,
-                        logging: false
+                        scale: 2,
+                        useCORS: false,
+                        allowTaint: false
                     });
 
-                    if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+                    if (!receiptCanvas || !(receiptCanvas instanceof HTMLCanvasElement)) {
                         throw new Error('Canvas 创建失败');
+                    }
+
+                    // 第四步：恢复显示
+                    if (barcode && barcodeWasVisible) barcode.style.display = 'block';
+                    if (stamp && stampWasVisible) stamp.style.display = 'block';
+                    
+                    // 第五步：创建最终画布
+                    const finalCanvas = document.createElement('canvas');
+                    finalCanvas.width = receiptCanvas.width;
+                    finalCanvas.height = receiptCanvas.height;
+                    const ctx = finalCanvas.getContext('2d');
+                    
+                    // 先绘制收据
+                    ctx.drawImage(receiptCanvas, 0, 0);
+                    
+                    // 绘制条形码 - 用html2canvas捕获
+                    if (barcode && barcodeWasVisible && barcodeInfo) {
+                        const barcodeCanvas = await html2canvas(barcode, {
+                            backgroundColor: null,
+                            scale: 2,
+                            useCORS: false,
+                            allowTaint: false
+                        });
+                        
+                        ctx.drawImage(
+                            barcodeCanvas, 
+                            barcodeInfo.x * 2, 
+                            barcodeInfo.y * 2, 
+                            barcodeInfo.width * 2, 
+                            barcodeInfo.height * 2
+                        );
+                    }
+                    
+                    // 绘制图章 - 直接使用Image对象绘制，绝对避免canvas污染
+                    if (stamp && stampWasVisible && stampInfo && stampImgSrc) {
+                        const img = new Image();
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => {
+                                ctx.globalAlpha = 0.8;
+                                ctx.drawImage(
+                                    img, 
+                                    stampInfo.x * 2, 
+                                    stampInfo.y * 2, 
+                                    stampInfo.width * 2, 
+                                    stampInfo.height * 2
+                                );
+                                ctx.globalAlpha = 1.0;
+                                resolve();
+                            };
+                            img.onerror = reject;
+                            img.src = stampImgSrc;
+                        });
                     }
 
                     // 创建下载链接
                     const link = document.createElement('a');
                     link.download = `Hyrule_Receipt_${Date.now()}.png`;
-                    link.href = canvas.toDataURL('image/png');
+                    link.href = finalCanvas.toDataURL('image/png');
                     link.click();
                     
-                    // 显示成功提示
                     setTimeout(() => {
                         alert('导出成功！');
                     }, 500);
@@ -449,12 +660,13 @@
                     alert('导出失败: ' + (error.message || '未知错误，请稍后再试'));
                 } finally {
                     // 确保恢复所有状态
-                    try {
-                        receipt.style.transform = originalTransform;
-                        btn.innerText = originalBtnText;
-                        btn.disabled = false;
-                    } catch (e) {
-                        console.error('恢复状态失败:', e);
+                    btn.innerText = originalBtnText;
+                    btn.disabled = false;
+                    if (stamp && stampWasVisible && stamp.style.display === 'none') {
+                        stamp.style.display = 'block';
+                    }
+                    if (barcode && barcodeWasVisible && barcode.style.display === 'none') {
+                        barcode.style.display = 'block';
                     }
                 }
             }, 100);
@@ -477,8 +689,32 @@
 
         // 初始化
         window.onload = () => {
-            JsBarcode("#barcode", "HYRULE-20260204", { width: 0.8, height: 20, displayValue: true, fontSize: 10, background: null });
+            JsBarcode("#barcode", "H20260214018", { width: 0.8, height: 20, displayValue: true, fontSize: 10, background: null });
             calculateTotal();
+            
+            // 为条形码元素添加事件监听器，防止点击时触发删除模式
+            const barcodeMove = document.getElementById('barcode-move');
+            if (barcodeMove) {
+                barcodeMove.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                barcodeMove.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            
+            // 为图章元素添加事件监听器，防止点击时触发删除模式
+            const stampMove = document.getElementById('stamp-move');
+            if (stampMove) {
+                stampMove.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                stampMove.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                });
+            }
         };
 
         // 加菜功能
@@ -486,25 +722,106 @@
             const itemList = document.getElementById('item-list');
             const newItem = document.createElement('div');
             newItem.className = 'menu-item editable-item';
+            // 获取当前的菜品名称字体大小，确保新添加的菜单项使用相同的大小
+            const currentSize = document.querySelector('.item-name').style.fontSize || '22px';
             newItem.innerHTML = `
-                <div style="width:50px">1</div>
+                <div class="item-quantity" style="width:50px; font-size: ${currentSize};">1</div>
                 <div style="flex:1">
-                    <div class="item-name">新菜品</div>
+                    <div class="item-name" style="font-size: ${currentSize};">新菜品</div>
                     <div class="item-desc">点击编辑描述</div>
                 </div>
-                <div style="font-weight:bold">0.0</div>
+                <div class="item-price" style="font-weight:bold; font-size: ${currentSize};">0.0</div>
             `;
             itemList.appendChild(newItem);
             calculateTotal();
         }
 
         // 编辑条形码
-        let currentBarcodeValue = 'HYRULE-20260204';
+        let currentBarcodeValue = '20260214018';
+        let barcodeRotation = 0;
+        let stampRotation = 0;
+        
         function editBarcode() {
             const newValue = prompt('请输入条形码内容:', currentBarcodeValue);
             if (newValue && newValue.trim()) {
                 currentBarcodeValue = newValue.trim();
                 JsBarcode("#barcode", currentBarcodeValue, { width: 0.8, height: 20, displayValue: true, fontSize: 10, background: null });
+                // 保持条形码的旋转角度
+                updateBarcodeRotation();
+            }
+        }
+        
+        // 更新条形码的旋转
+        function updateBarcodeRotation() {
+            const barcodeMove = document.getElementById('barcode-move');
+            if (barcodeMove) {
+                const transform = barcodeMove.style.transform || '';
+                // 提取现有的 translate 值
+                const translateMatch = transform.match(/translate3d\(([^)]+)\)/);
+                const translate = translateMatch ? `translate3d(${translateMatch[1]})` : '';
+                barcodeMove.style.transform = `${translate} rotate(${barcodeRotation}deg)`;
+            }
+        }
+        
+        // 更新图章的旋转
+        function updateStampRotation() {
+            const stampMove = document.getElementById('stamp-move');
+            if (stampMove) {
+                const transform = stampMove.style.transform || '';
+                // 提取现有的 translate 值
+                const translateMatch = transform.match(/translate3d\(([^)]+)\)/);
+                const translate = translateMatch ? `translate3d(${translateMatch[1]})` : '';
+                stampMove.style.transform = `${translate} rotate(${stampRotation}deg)`;
+            }
+        }
+        
+        // 旋转条形码
+        function rotateBarcode(degrees) {
+            barcodeRotation = (barcodeRotation + degrees) % 360;
+            updateBarcodeRotation();
+        }
+        
+        // 旋转图章
+        function rotateStamp(degrees) {
+            stampRotation = (stampRotation + degrees) % 360;
+            updateStampRotation();
+        }
+        
+        // 图章功能
+        let stampVisible = false;
+        function toggleStamp() {
+            const stamp = document.getElementById('stamp-move');
+            const btn = document.getElementById('btn-stamp');
+            stampVisible = !stampVisible;
+            stamp.style.display = stampVisible ? 'block' : 'none';
+            btn.innerText = stampVisible ? "🖋️ 图章:开" : "🖋️ 图章:关";
+            btn.classList.toggle('active', stampVisible);
+        }
+        
+        // 上传自定义图章
+        function loadCustomStamp(input) {
+            if (input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const stampImg = document.getElementById('stamp');
+                    stampImg.src = e.target.result;
+                    // 如果图章当前是隐藏的，自动显示它
+                    if (!stampVisible) {
+                        toggleStamp();
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // 调整图章大小
+        function resizeStamp() {
+            const stampImg = document.getElementById('stamp');
+            const currentWidth = parseInt(stampImg.style.width) || 80;
+            const newWidth = prompt('请输入图章大小 (10-300px):', currentWidth);
+            const width = parseInt(newWidth);
+            if (!isNaN(width) && width >= 10 && width <= 300) {
+                stampImg.style.width = width + 'px';
             }
         }
 
